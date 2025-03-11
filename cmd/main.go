@@ -6,6 +6,7 @@ import (
 )
 
 func main() {
+
 	err := server.StartServer()
 
 	if err != nil {

@@ -77,3 +77,47 @@ func createTable() error {
 	return nil
 
 }
+
+func AddTask(date, title, comment, repeat string) (int64, error) {
+	db, err := OpenDB()
+
+	if err != nil {
+		return 0, err
+	}
+	defer db.Close()
+
+	res, err := db.Exec("INSERT INTO scheduler (date, title, comment, repeat) VALUES (:date, :title, :comment, :repeat)",
+		sql.Named("date", date),
+		sql.Named("title", title),
+		sql.Named("comment", comment),
+		sql.Named("repeat", repeat))
+
+	if err != nil {
+		return 0, err
+	}
+
+	id, err := res.LastInsertId()
+
+	if err != nil {
+		return 0, err
+	}
+
+	return id, err
+}
+
+func SelectTasks() (*sql.Rows, error) {
+	db, err := OpenDB()
+
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.Query("SELECT id, date, title, comment, repeat FROM scheduler ORDER BY date")
+
+	if err != nil {
+		return nil, err
+	}
+
+	return rows, nil
+}
