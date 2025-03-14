@@ -11,7 +11,7 @@ import (
 )
 
 type Task struct {
-	ID      int    `json:"id,omitempty"`
+	ID      string `json:"id,omitempty"`
 	Date    string `json:"date"`
 	Title   string `json:"title"`
 	Comment string `json:"comment"`
@@ -27,20 +27,176 @@ func getRepeat(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		fmt.Println(err)
+		http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
 		return
 	}
 
-	repeatTask, err := repeattask.NextDate(timeNow, date, repeat)
+	nextDate, err := repeattask.NextDate(timeNow, date, repeat)
 
 	if err != nil {
 		fmt.Println(err)
+		http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
 		return
 	}
 
-	w.Write([]byte(repeatTask))
+	fmt.Println(nextDate)
+
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	if _, err := w.Write([]byte(nextDate)); err != nil {
+		fmt.Println(err.Error())
+	}
 }
 
 func postTask(w http.ResponseWriter, r *http.Request) {
+	var task Task
+	var buf bytes.Buffer
+
+	_, err := buf.ReadFrom(r.Body)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	if err := json.Unmarshal(buf.Bytes(), &task); err != nil {
+		http.Error(w, `{"error": "ошибка десериализации JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	if len(task.Title) == 0 {
+		http.Error(w, `{"error": "не указан заголовок задачи"}`, http.StatusBadRequest)
+		return
+	}
+
+	if task.Date == "" {
+		task.Date = time.Now().Format("20060102")
+	}
+
+	t, err := time.Parse("20060102", task.Date)
+
+	if err != nil {
+		http.Error(w, `{"error": "ошибка выполнения time.Parse, дата должна быть в формате YYYYMMDD"}`, http.StatusBadRequest)
+		return
+	}
+
+	if t.Format("20060102") != task.Date {
+		http.Error(w, `{"error": "дата представлена в формате, отличном от 20060102"}`, http.StatusBadRequest)
+		return
+	}
+
+	if t.Before(time.Now()) && task.Repeat != "" {
+
+		repeatTask, err := repeattask.NextDate(time.Now(), task.Date, task.Repeat)
+
+		if err != nil {
+			http.Error(w, `{"error": "правило повторения указано в неправильном формате"}`, http.StatusBadRequest)
+			return
+		}
+		task.Date = repeatTask
+	} else {
+		task.Date = time.Now().Format("20060102")
+	}
+
+	id, err := database.AddTask(task.Date, task.Title, task.Comment, task.Repeat)
+
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, `{"error": "ошибка при добавлении задачи"}`, http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusCreated)
+
+	if _, err := w.Write([]byte(fmt.Sprintf(`{"id": "%d"}`, id))); err != nil {
+		fmt.Println(err.Error())
+	}
+}
+
+func getTasks(w http.ResponseWriter, r *http.Request) {
+	tasks := map[string][]Task{
+		"tasks": {},
+	}
+
+	rows, err := database.SelectTasks()
+
+	if err != nil {
+		http.Error(w, `{"error": "ошибка при получении данных"}`, http.StatusBadRequest)
+		return
+	}
+
+	for rows.Next() {
+		task := Task{}
+
+		err := rows.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
+
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
+			return
+		}
+
+		tasks["tasks"] = append(tasks["tasks"], task)
+	}
+
+	result, err := json.Marshal(tasks)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if _, err := w.Write(result); err != nil {
+		fmt.Println(err.Error())
+	}
+}
+
+func getTaskById(w http.ResponseWriter, r *http.Request) {
+	var task Task
+
+	id := r.URL.Query().Get("id")
+
+	if len(id) == 0 {
+		fmt.Println(id)
+		http.Error(w, `{"error": "Не указан идентификатор"}`, http.StatusBadRequest)
+		return
+	}
+
+	row := database.SelectTaskById(id)
+
+	if row == nil {
+		http.Error(w, `{"error": "Задача не найдена"}`, http.StatusBadRequest)
+		return
+	}
+
+	err := row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
+
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	result, err := json.Marshal(task)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if _, err := w.Write(result); err != nil {
+		fmt.Println(err.Error())
+	}
+
+}
+
+func putTask(w http.ResponseWriter, r *http.Request) {
 	var task Task
 	var buf bytes.Buffer
 
@@ -72,9 +228,7 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if task.Repeat == "" {
-		task.Date = time.Now().Format("20060102")
-	} else {
+	if task.Repeat != "" {
 		repeatTask, err := repeattask.NextDate(time.Now(), task.Date, task.Repeat)
 
 		if err != nil {
@@ -84,48 +238,90 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 		task.Date = repeatTask
 	}
 
-	id, err := database.AddTask(task.Date, task.Title, task.Comment, task.Repeat)
+	res, err := database.UpdateTask(task.ID, task.Date, task.Title, task.Comment, task.Repeat)
 
-	if err != nil {
-		fmt.Println(err)
-		http.Error(w, `{"error": "ошибка при добавлении задачи"}`, http.StatusBadRequest)
+	if err != nil || res == 0 {
+		http.Error(w, `{"error": "Задача не найдена"}`, http.StatusBadRequest)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(fmt.Sprintf(`{"id": "%d"}`, id)))
+
+	if _, err := w.Write([]byte("{}")); err != nil {
+		fmt.Println(err.Error())
+	}
 }
 
-func getTask(w http.ResponseWriter, r *http.Request) {
-	var tasks []Task
+func postCheck(w http.ResponseWriter, r *http.Request) {
+	var task Task
+	id := r.URL.Query().Get("id")
 
-	rows, err := database.SelectTasks()
+	row := database.SelectTaskById(id)
+
+	if row == nil {
+		http.Error(w, `{"error": "Задача не найдена"}`, http.StatusBadRequest)
+		return
+	}
+
+	err := row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
 		return
 	}
 
-	for rows.Next() {
-		task := Task{}
+	fmt.Println(task)
 
-		err := rows.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
+	if len(task.Repeat) == 0 {
+		err := database.DeleteTask(task.ID)
+
+		if err != nil {
+			http.Error(w, `{"error": "ошибка при удалении"}`, http.StatusBadRequest)
+			return
+		}
+
+	} else {
+		repeatTask, err := repeattask.NextDate(time.Now(), task.Date, task.Repeat)
 
 		if err != nil {
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
 			return
 		}
+		task.Date = repeatTask
+		fmt.Println(task)
 
-		tasks = append(tasks, task)
+		_, err = database.UpdateTask(task.ID, task.Date, task.Title, task.Comment, task.Repeat)
+
+		if err != nil {
+			http.Error(w, `{"error": "Задача не найдена"}`, http.StatusBadRequest)
+			return
+		}
 	}
 
-	result, err := json.Marshal(tasks)
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	if _, err := w.Write([]byte("{}")); err != nil {
+		fmt.Println(err.Error())
+	}
+}
+
+func deleteTask(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+
+	err := database.DeleteTask(id)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, `{"error": "ошибка при удалении"}`, http.StatusBadRequest)
 		return
 	}
 
-	w.Write([]byte(result))
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	if _, err := w.Write([]byte("{}")); err != nil {
+		fmt.Println(err.Error())
+	}
+
 }

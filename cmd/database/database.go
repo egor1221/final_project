@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"log"
 	"os"
-	"path/filepath"
 
 	_ "modernc.org/sqlite"
 )
@@ -12,12 +11,7 @@ import (
 var install bool
 
 func checkDb() {
-	appPath, err := os.Executable()
-	if err != nil {
-		log.Fatal(err)
-	}
-	dbFile := filepath.Join(filepath.Dir(appPath), "scheduler.db")
-	_, err = os.Stat(dbFile)
+	_, err := os.Stat("./scheduler.db")
 
 	if err != nil {
 		install = true
@@ -53,7 +47,7 @@ func createTable() error {
     );
     CREATE INDEX scheduler_date ON scheduler (date)`
 
-	file, err := os.Create("scheduler.db")
+	file, err := os.Create("./scheduler.db")
 
 	if err != nil {
 		return err
@@ -84,6 +78,7 @@ func AddTask(date, title, comment, repeat string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	defer db.Close()
 
 	res, err := db.Exec("INSERT INTO scheduler (date, title, comment, repeat) VALUES (:date, :title, :comment, :repeat)",
@@ -111,6 +106,7 @@ func SelectTasks() (*sql.Rows, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	defer db.Close()
 
 	rows, err := db.Query("SELECT id, date, title, comment, repeat FROM scheduler ORDER BY date")
@@ -120,4 +116,58 @@ func SelectTasks() (*sql.Rows, error) {
 	}
 
 	return rows, nil
+}
+
+func SelectTaskById(id string) *sql.Row {
+	db, err := OpenDB()
+
+	if err != nil {
+		log.Fatalf(err.Error())
+		return nil
+	}
+	defer db.Close()
+
+	row := db.QueryRow("SELECT id, date, title, comment, repeat FROM scheduler WHERE id=:id",
+		sql.Named("id", id))
+
+	return row
+}
+
+func UpdateTask(id, date, title, comment, repeat string) (int64, error) {
+	db, err := OpenDB()
+
+	if err != nil {
+		return 0, err
+	}
+	defer db.Close()
+
+	res, err := db.Exec("UPDATE scheduler SET date=:date, title=:title, comment=:comment, repeat=:repeat WHERE id=:id",
+		sql.Named("date", date),
+		sql.Named("title", title),
+		sql.Named("comment", comment),
+		sql.Named("repeat", repeat),
+		sql.Named("id", id))
+
+	if err != nil {
+		return 0, err
+	}
+
+	return res.RowsAffected()
+}
+
+func DeleteTask(id string) error {
+	db, err := OpenDB()
+
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	_, err = db.Exec("DELETE FROM scheduler WHERE id=:id", sql.Named("id", id))
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
