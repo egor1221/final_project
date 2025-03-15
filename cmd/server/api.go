@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 	"todo/database"
 	"todo/repeattask"
@@ -85,7 +86,7 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if t.Before(time.Now()) && task.Repeat != "" {
+	if t.Before(time.Now()) && task.Repeat != "" && time.Now().Format("20060102") != task.Date {
 
 		repeatTask, err := repeattask.NextDate(time.Now(), task.Date, task.Repeat)
 
@@ -271,8 +272,6 @@ func postCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println(task)
-
 	if len(task.Repeat) == 0 {
 		err := database.DeleteTask(task.ID)
 
@@ -289,7 +288,6 @@ func postCheck(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		task.Date = repeatTask
-		fmt.Println(task)
 
 		_, err = database.UpdateTask(task.ID, task.Date, task.Title, task.Comment, task.Repeat)
 
@@ -310,7 +308,19 @@ func postCheck(w http.ResponseWriter, r *http.Request) {
 func deleteTask(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 
-	err := database.DeleteTask(id)
+	if id == "" {
+		http.Error(w, `{"error": "id пустой"}`, http.StatusBadRequest)
+		return
+	}
+
+	parseId, err := strconv.Atoi(id)
+
+	if err != nil || parseId <= 0 {
+		http.Error(w, `{"error": "неверный формат id"}`, http.StatusBadRequest)
+		return
+	}
+
+	err = database.DeleteTask(id)
 
 	if err != nil {
 		http.Error(w, `{"error": "ошибка при удалении"}`, http.StatusBadRequest)
@@ -323,5 +333,4 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write([]byte("{}")); err != nil {
 		fmt.Println(err.Error())
 	}
-
 }

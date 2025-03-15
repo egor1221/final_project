@@ -23,7 +23,6 @@ func addDay(now, parseDate time.Time, number int) (string, error) {
 	}
 
 	resDate := parseDate.AddDate(0, 0, number)
-	fmt.Println(resDate)
 
 	for resDate.Before(now) {
 		resDate = resDate.AddDate(0, 0, number)
