@@ -100,6 +100,7 @@ func TestEditTask(t *testing.T) {
 		assert.NoError(t, err)
 
 		e, ok := mupd["error"]
+		fmt.Println(e, ok, fmt.Sprint(e) != "")
 		assert.False(t, ok && fmt.Sprint(e) != "")
 
 		var task Task

@@ -2,13 +2,10 @@ package repeattask
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 )
 
 var letter string
-var number int
 
 func NextDate(now time.Time, date string, repeat string) (string, error) {
 
@@ -22,7 +19,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 		return "", fmt.Errorf(`в колонке repeat — пустая строка`)
 	}
 
-	letter, number = splitRepeat(repeat)
+	letter = string(repeat[0])
 
 	var nextDate string
 
@@ -30,7 +27,17 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 	case "y":
 		nextDate = addYear(now, parseDate)
 	case "d":
-		nextDate, err = addDay(now, parseDate, number)
+		nextDate, err = addDay(now, parseDate, repeat)
+		if err != nil {
+			return "", err
+		}
+	case "w":
+		nextDate, err = addWeek(now, parseDate, repeat)
+		if err != nil {
+			return "", err
+		}
+	case "m":
+		nextDate, err = addMonth(now, parseDate, repeat)
 		if err != nil {
 			return "", err
 		}
@@ -39,20 +46,4 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 	}
 
 	return nextDate, nil
-}
-
-func splitRepeat(repeat string) (string, int) {
-	arr := strings.Fields(repeat)
-
-	if len(arr) < 2 {
-		return arr[0], 0
-	}
-
-	num, err := strconv.Atoi(arr[1])
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return arr[0], num
 }
