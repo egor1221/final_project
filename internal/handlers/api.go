@@ -11,14 +11,6 @@ import (
 	"time"
 )
 
-type Task struct {
-	ID      string `json:"id,omitempty"`
-	Date    string `json:"date"`
-	Title   string `json:"title"`
-	Comment string `json:"comment"`
-	Repeat  string `json:"repeat"`
-}
-
 func getRepeat(w http.ResponseWriter, r *http.Request) {
 	now := r.URL.Query().Get("now")
 	date := r.URL.Query().Get("date")
@@ -67,7 +59,7 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if task.Date == "" {
-		task.Date = time.Now().Format("20060102")
+		task.Date = now.Format("20060102")
 	}
 
 	t, err := time.Parse("20060102", task.Date)
@@ -82,10 +74,10 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if t.Before(time.Now()) && task.Date != time.Now().Format("20060102") {
+	if t.Before(now) && task.Date != now.Format("20060102") {
 		if task.Repeat != "" {
 
-			repeatTask, err := repeattask.NextDate(time.Now(), task.Date, task.Repeat)
+			repeatTask, err := repeattask.NextDate(now, task.Date, task.Repeat)
 
 			if err != nil {
 				http.Error(w, `{"error": "правило повторения указано в неправильном формате"}`, http.StatusBadRequest)
@@ -93,7 +85,7 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 			}
 			task.Date = repeatTask
 		} else {
-			task.Date = time.Now().Format("20060102")
+			task.Date = now.Format("20060102")
 		}
 	}
 
@@ -169,14 +161,19 @@ func getTaskById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	row := database.SelectTaskById(id)
+	row, err := database.SelectTaskById(id)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
 
 	if row == nil {
 		http.Error(w, `{"error": "Задача не найдена"}`, http.StatusBadRequest)
 		return
 	}
 
-	err := row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
+	err = row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
@@ -221,7 +218,7 @@ func putTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if task.Date == "" {
-		task.Date = time.Now().Format("20060102")
+		task.Date = now.Format("20060102")
 	}
 
 	t, err := time.Parse("20060102", task.Date)
@@ -231,14 +228,9 @@ func putTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if task.Repeat != "" {
-		repeatTask, err := repeattask.NextDate(time.Now(), task.Date, task.Repeat)
-
-		if err != nil {
-			http.Error(w, `{"error": "правило повторения указано в неправильном формате"}`, http.StatusBadRequest)
-			return
-		}
-		task.Date = repeatTask
+	if t.Before(now) {
+		http.Error(w, `{"error": "дата не должна быть позже текущей"}`, http.StatusBadRequest)
+		return
 	}
 
 	res, err := database.UpdateTask(task.ID, task.Date, task.Title, task.Comment, task.Repeat)
@@ -260,14 +252,19 @@ func postCheck(w http.ResponseWriter, r *http.Request) {
 	var task Task
 	id := r.URL.Query().Get("id")
 
-	row := database.SelectTaskById(id)
+	row, err := database.SelectTaskById(id)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
 
 	if row == nil {
 		http.Error(w, `{"error": "Задача не найдена"}`, http.StatusBadRequest)
 		return
 	}
 
-	err := row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
+	err = row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
@@ -283,7 +280,7 @@ func postCheck(w http.ResponseWriter, r *http.Request) {
 		}
 
 	} else {
-		repeatTask, err := repeattask.NextDate(time.Now(), task.Date, task.Repeat)
+		repeatTask, err := repeattask.NextDate(now, task.Date, task.Repeat)
 
 		if err != nil {
 			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)

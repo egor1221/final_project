@@ -6,8 +6,6 @@ import (
 	"github.com/go-chi/chi"
 )
 
-var webDir string = "../web"
-
 func Router() *chi.Mux {
 	r := chi.NewRouter()
 

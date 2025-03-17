@@ -10,13 +10,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-var dbFile string = os.Getenv("TODO_DBFILE")
-var limit int = 50
-
 func CheckDb() {
 
 	if dbFile != "" {
-		fmt.Println(123)
 		return
 	}
 
@@ -48,14 +44,6 @@ func openDB() (*sql.DB, error) {
 }
 
 func createTable() error {
-	schemeSql := `CREATE TABLE scheduler (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date CHAR(8) NOT NULL DEFAULT "",
-    title VARCHAR(128) NOT NULL DEFAULT "",
-    comment VARCHAR(128) NOT NULL DEFAULT "",
-    repeat VARCHAR(128) NOT NULL DEFAULT ""
-    );
-    CREATE INDEX scheduler_date ON scheduler (date)`
 
 	db, err := sql.Open("sqlite", "../scheduler.db")
 	if err != nil {
@@ -136,19 +124,18 @@ func SelectTasks(search string) (*sql.Rows, error) {
 	return rows, nil
 }
 
-func SelectTaskById(id string) *sql.Row {
+func SelectTaskById(id string) (*sql.Row, error) {
 	db, err := openDB()
 
 	if err != nil {
-		log.Fatalf(err.Error())
-		return nil
+		return nil, err
 	}
 	defer db.Close()
 
 	row := db.QueryRow("SELECT id, date, title, comment, repeat FROM scheduler WHERE id=:id",
 		sql.Named("id", id))
 
-	return row
+	return row, nil
 }
 
 func UpdateTask(id, date, title, comment, repeat string) (int64, error) {
