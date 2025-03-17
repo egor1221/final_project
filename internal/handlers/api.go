@@ -82,17 +82,19 @@ func postTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if task.Repeat != "" && t.Before(time.Now()) {
+	if t.Before(time.Now()) && task.Date != time.Now().Format("20060102") {
+		if task.Repeat != "" {
 
-		repeatTask, err := repeattask.NextDate(time.Now(), task.Date, task.Repeat)
+			repeatTask, err := repeattask.NextDate(time.Now(), task.Date, task.Repeat)
 
-		if err != nil {
-			http.Error(w, `{"error": "правило повторения указано в неправильном формате"}`, http.StatusBadRequest)
-			return
+			if err != nil {
+				http.Error(w, `{"error": "правило повторения указано в неправильном формате"}`, http.StatusBadRequest)
+				return
+			}
+			task.Date = repeatTask
+		} else {
+			task.Date = time.Now().Format("20060102")
 		}
-		task.Date = repeatTask
-	} else if time.Now().Format("20060102") == task.Date {
-		task.Date = time.Now().Format("20060102")
 	}
 
 	id, err := database.AddTask(task.Date, task.Title, task.Comment, task.Repeat)

@@ -107,15 +107,16 @@ func addMonth(now, parseDate time.Time, repeat string) (string, error) {
 
 	if len(repeatArr) < 3 {
 		for {
+			resDate = resDate.AddDate(0, 0, 1)
+
 			for _, day := range days {
 				if day == -1 && resDate.Day() == daysOfMonth(resDate).Day() {
 					return resDate.Format("20060102"), nil
-				} else if day == -2 && resDate.Day() == daysOfMonth(resDate).Day()-1 {
+				} else if day == -2 && resDate.Day() == daysOfMonth(resDate).AddDate(0, 0, -1).Day() {
 					return resDate.Format("20060102"), nil
-				} else if resDate.Day() == day {
+				} else if resDate.Day() == day && day > 0 {
 					return resDate.Format("20060102"), nil
 				}
-				resDate = resDate.AddDate(0, 0, 1)
 			}
 		}
 	} else {
@@ -130,6 +131,10 @@ func addMonth(now, parseDate time.Time, repeat string) (string, error) {
 				count++
 			}
 			if count == len(months) {
+				resDate = resDate.AddDate(0, 1, 0)
+				continue
+			}
+			if resDate.Equal(now) {
 				resDate = resDate.AddDate(0, 1, 0)
 				continue
 			}
@@ -188,6 +193,6 @@ func splitRepeatArr(repeatArr []string) ([]int, []int, error) {
 }
 
 func daysOfMonth(t time.Time) time.Time {
-	year, month, day := t.Date()
-	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	year, month, _ := t.Date()
+	return time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC)
 }

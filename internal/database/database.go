@@ -115,7 +115,7 @@ func SelectTasks(search string) (*sql.Rows, error) {
 	var rows *sql.Rows
 
 	if search != "" {
-		search += "%"
+		search = "%" + search + "%"
 		rows, err = db.Query("SELECT id, date, title, comment, repeat FROM scheduler WHERE title LIKE :search OR date LIKE :search OR comment LIKE :search ORDER BY date LIMIT :limit",
 			sql.Named("limit", limit),
 			sql.Named("search", search))
