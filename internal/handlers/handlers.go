@@ -11,14 +11,16 @@ func Router() *chi.Mux {
 
 	r.Get("/api/nextdate", getRepeat)
 
-	r.Get("/api/tasks", getTasks)
+	r.Get("/api/tasks", authMiddleware(getTasks))
 
-	r.Get("/api/task", getTaskById)
-	r.Post("/api/task", postTask)
-	r.Put("/api/task", putTask)
+	r.Get("/api/task", authMiddleware(getTaskById))
+	r.Post("/api/task", authMiddleware(postTask))
+	r.Put("/api/task", authMiddleware(putTask))
 
-	r.Post("/api/task/done", postCheck)
-	r.Delete("/api/task", deleteTask)
+	r.Post("/api/task/done", authMiddleware(postCheck))
+	r.Delete("/api/task", authMiddleware(deleteTask))
+
+	r.Post("/api/signin", postPassword)
 
 	r.Handle("/", http.FileServer(http.Dir(webDir)))
 	r.Handle("/css/style.css", http.FileServer(http.Dir(webDir)))

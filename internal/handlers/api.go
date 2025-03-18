@@ -333,3 +333,37 @@ func deleteTask(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err.Error())
 	}
 }
+
+func postPassword(w http.ResponseWriter, r *http.Request) {
+	var password password
+	var buf bytes.Buffer
+
+	_, err := buf.ReadFrom(r.Body)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	if err := json.Unmarshal(buf.Bytes(), &password); err != nil {
+		http.Error(w, `{"error": "ошибка десериализации JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	if pass != password.Password {
+		http.Error(w, `{"error": "неверный пароль"}`, http.StatusUnauthorized)
+		return
+	}
+
+	signedToken, err := generateToken()
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	json.NewEncoder(w).Encode(map[string]string{"token": signedToken})
+}
