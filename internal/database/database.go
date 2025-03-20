@@ -10,7 +10,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func CheckDb() {
+func checkDb() {
 
 	if dbFile != "" {
 		return
@@ -32,20 +32,14 @@ func CheckDb() {
 	}
 }
 
-func openDB() (*sql.DB, error) {
-
-	db, err := sql.Open("sqlite", dbFile)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return db, nil
+func OpenDB() (*sql.DB, error) {
+	checkDb()
+	return sql.Open("sqlite", dbFile)
 }
 
 func createTable() error {
 
-	db, err := sql.Open("sqlite", "../scheduler.db")
+	db, err := sql.Open("sqlite", dbFile)
 	if err != nil {
 		return err
 	}
@@ -61,14 +55,7 @@ func createTable() error {
 
 }
 
-func AddTask(date, title, comment, repeat string) (int64, error) {
-	db, err := openDB()
-
-	if err != nil {
-		return 0, err
-	}
-
-	defer db.Close()
+func AddTask(db *sql.DB, date, title, comment, repeat string) (int64, error) {
 
 	res, err := db.Exec("INSERT INTO scheduler (date, title, comment, repeat) VALUES (:date, :title, :comment, :repeat)",
 		sql.Named("date", date),
@@ -91,16 +78,10 @@ func AddTask(date, title, comment, repeat string) (int64, error) {
 	return id, err
 }
 
-func SelectTasks(search string) (*sql.Rows, error) {
-	db, err := openDB()
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer db.Close()
+func SelectTasks(db *sql.DB, search string) (*sql.Rows, error) {
 
 	var rows *sql.Rows
+	var err error
 
 	if search != "" {
 		search = "%" + search + "%"
@@ -121,16 +102,10 @@ func SelectTasks(search string) (*sql.Rows, error) {
 		}
 	}
 
-	return rows, nil
+	return rows, err
 }
 
-func SelectTaskById(id string) (*sql.Row, error) {
-	db, err := openDB()
-
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
+func SelectTaskById(db *sql.DB, id string) (*sql.Row, error) {
 
 	row := db.QueryRow("SELECT id, date, title, comment, repeat FROM scheduler WHERE id=:id",
 		sql.Named("id", id))
@@ -138,13 +113,7 @@ func SelectTaskById(id string) (*sql.Row, error) {
 	return row, nil
 }
 
-func UpdateTask(id, date, title, comment, repeat string) (int64, error) {
-	db, err := openDB()
-
-	if err != nil {
-		return 0, err
-	}
-	defer db.Close()
+func UpdateTask(db *sql.DB, id, date, title, comment, repeat string) (int64, error) {
 
 	res, err := db.Exec("UPDATE scheduler SET date=:date, title=:title, comment=:comment, repeat=:repeat WHERE id=:id",
 		sql.Named("date", date),
@@ -160,15 +129,9 @@ func UpdateTask(id, date, title, comment, repeat string) (int64, error) {
 	return res.RowsAffected()
 }
 
-func DeleteTask(id string) error {
-	db, err := openDB()
+func DeleteTask(db *sql.DB, id string) error {
 
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	_, err = db.Exec("DELETE FROM scheduler WHERE id=:id", sql.Named("id", id))
+	_, err := db.Exec("DELETE FROM scheduler WHERE id=:id", sql.Named("id", id))
 
 	if err != nil {
 		return err

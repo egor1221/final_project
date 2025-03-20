@@ -12,15 +12,23 @@ var todoPort string = os.Getenv("TODO_PORT")
 
 func main() {
 
-	r := handlers.Router()
+	db, err := database.OpenDB()
 
-	database.CheckDb()
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	defer db.Close()
+
+	r := handlers.Router(db)
 
 	if len(todoPort) == 0 {
 		todoPort = ":7540"
 	}
 
-	err := http.ListenAndServe(todoPort, r)
+	log.Println("Порт запуска: " + todoPort)
+
+	err = http.ListenAndServe(todoPort, r)
 
 	if err != nil {
 		log.Fatalf(err.Error())

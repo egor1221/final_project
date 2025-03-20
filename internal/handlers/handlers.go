@@ -1,35 +1,30 @@
 package handlers
 
 import (
+	"database/sql"
 	"net/http"
 
 	"github.com/go-chi/chi"
 )
 
-func Router() *chi.Mux {
+func Router(db *sql.DB) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Get("/api/nextdate", getRepeat)
 
-	r.Get("/api/tasks", authMiddleware(getTasks))
+	r.Get("/api/tasks", authMiddleware(getTasks(db)))
 
-	r.Get("/api/task", authMiddleware(getTaskById))
-	r.Post("/api/task", authMiddleware(postTask))
-	r.Put("/api/task", authMiddleware(putTask))
+	r.Get("/api/task", authMiddleware(getTaskById(db)))
+	r.Post("/api/task", authMiddleware(postTask(db)))
+	r.Put("/api/task", authMiddleware(putTask(db)))
 
-	r.Post("/api/task/done", authMiddleware(postCheck))
-	r.Delete("/api/task", authMiddleware(deleteTask))
+	r.Post("/api/task/done", authMiddleware(postCheck(db)))
+	r.Delete("/api/task", authMiddleware(deleteTask(db)))
 
 	r.Post("/api/signin", postPassword)
 
 	r.Handle("/", http.FileServer(http.Dir(webDir)))
-	r.Handle("/css/style.css", http.FileServer(http.Dir(webDir)))
-	r.Handle("/css/theme.css", http.FileServer(http.Dir(webDir)))
-	r.Handle("/js/axios.min.js", http.FileServer(http.Dir(webDir)))
-	r.Handle("/js/scripts.min.js", http.FileServer(http.Dir(webDir)))
-	r.Handle("/favicon.ico", http.FileServer(http.Dir(webDir)))
-	r.Handle("/login.html", http.FileServer(http.Dir(webDir)))
-	r.Handle("/index.html", http.FileServer(http.Dir(webDir)))
+	r.Handle("/*", http.StripPrefix("/", http.FileServer(http.Dir(webDir))))
 
 	return r
 }
