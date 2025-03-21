@@ -7,7 +7,7 @@ import (
 
 var now time.Time = time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), 0, 0, 0, 0, time.Now().Location())
 
-var webDir string = "web"
+var webDir string = "../web"
 
 type Task struct {
 	ID      string `json:"id,omitempty"`
