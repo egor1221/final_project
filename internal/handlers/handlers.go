@@ -23,7 +23,6 @@ func Router(db *sql.DB) *chi.Mux {
 
 	r.Post("/api/signin", postPassword)
 
-	r.Handle("/", http.FileServer(http.Dir(webDir)))
 	r.Handle("/*", http.StripPrefix("/", http.FileServer(http.Dir(webDir))))
 
 	return r

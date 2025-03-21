@@ -2,7 +2,6 @@ package database
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -39,7 +38,7 @@ func OpenDB() (*sql.DB, error) {
 
 func createTable() error {
 
-	db, err := sql.Open("sqlite", dbFile)
+	db, err := OpenDB()
 	if err != nil {
 		return err
 	}
@@ -64,14 +63,12 @@ func AddTask(db *sql.DB, date, title, comment, repeat string) (int64, error) {
 		sql.Named("repeat", repeat))
 
 	if err != nil {
-		fmt.Println(err)
 		return 0, err
 	}
 
 	id, err := res.LastInsertId()
 
 	if err != nil {
-		fmt.Println(err)
 		return 0, err
 	}
 

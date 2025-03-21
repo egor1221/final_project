@@ -33,7 +33,7 @@ func getRepeat(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(nextDate)
+	w.Write([]byte(nextDate))
 }
 
 func postTask(db *sql.DB) http.HandlerFunc {
@@ -100,7 +100,7 @@ func postTask(db *sql.DB) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusCreated)
 
-		json.NewEncoder(w).Encode(map[string]string{"id": string(id)})
+		json.NewEncoder(w).Encode(map[string]int64{"id": id})
 	}
 }
 
@@ -144,17 +144,10 @@ func getTasks(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		result, err := json.Marshal(tasks)
-
-		if err != nil {
-			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
-			return
-		}
-
 		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		json.NewEncoder(w).Encode(result)
+		json.NewEncoder(w).Encode(tasks)
 	}
 }
 
@@ -189,17 +182,10 @@ func getTaskById(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		result, err := json.Marshal(task)
-
-		if err != nil {
-			http.Error(w, fmt.Sprintf(`{"error": "%s"}`, err.Error()), http.StatusBadRequest)
-			return
-		}
-
 		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		json.NewEncoder(w).Encode(result)
+		json.NewEncoder(w).Encode(task)
 	}
 }
 
